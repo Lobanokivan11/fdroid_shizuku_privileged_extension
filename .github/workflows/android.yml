@@ -26,10 +26,6 @@ jobs:
       run: chmod 777 ./gradlew
     - name: Cache Gradle
       uses: burrunan/gradle-cache-action@v2
-    - name: Build with Gradle
-      run: ./gradlew build
-    - name: Build Debug APK
-      run: ./gradlew assembleDebug
     - name: Build Release APK
       run: ./gradlew assembleRelease
     - name: Nightly build
@@ -39,6 +35,5 @@ jobs:
         tag_name: github_nightly_debug
         name: Debug Builds
         files: |
-           app/build/outputs/apk/debug/app-debug.apk
            app/build/outputs/apk/release/app-release.apk
            
