@@ -28,6 +28,8 @@ jobs:
       uses: burrunan/gradle-cache-action@v2
     - name: Build Release APK
       run: ./gradlew assembleRelease
+    - name: l
+      run: ls -lAR app/build/outputs/apk/
     - name: Nightly build
       uses: softprops/action-gh-release@v1
       with:
