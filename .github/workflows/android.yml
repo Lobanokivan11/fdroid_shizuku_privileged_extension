@@ -28,8 +28,6 @@ jobs:
       uses: burrunan/gradle-cache-action@v2
     - name: Build Release APK
       run: ./gradlew assembleRelease
-    - name: l
-      run: ls -lAR app/build/outputs/apk/
     - name: Nightly build
       uses: softprops/action-gh-release@v1
       with:
@@ -37,4 +35,4 @@ jobs:
         tag_name: github_nightly_debug
         name: Debug Builds
         files: |
-           app/build/outputs/apk/F-DroidPrivilegedExtension-release.apk
+           app/build/outputs/apk/release/F-DroidPrivilegedExtension-release.apk
