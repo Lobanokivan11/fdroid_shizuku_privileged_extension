@@ -35,4 +35,4 @@ jobs:
         tag_name: github_nightly_debug
         name: Debug Builds
         files: |
-           app/build/outputs/apk/release/F-DroidPrivilegedExtension-release.apk
+           app/build/outputs/apk/release/F-DroidShizukuPrivilegedExtension-release.apk
