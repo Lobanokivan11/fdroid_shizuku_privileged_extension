@@ -40,6 +40,14 @@ dependencies {
 android {
     compileSdkVersion 33
 
+    signingConfigs {
+        create("release") {
+            storeFile = new File("../sign.keystore")
+            storePassword = "369852"
+            keyAlias = "lob"
+            keyPassword = "369852"
+        }
+    }
     defaultConfig {
         archivesBaseName = "F-DroidShizukuPrivilegedExtension"
         versionName getVersionName()
