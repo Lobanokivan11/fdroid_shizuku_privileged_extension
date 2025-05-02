@@ -41,7 +41,7 @@ android {
     compileSdkVersion 33
 
     signingConfigs {
-        create("release") {
+        create("sign") {
             storeFile = new File("../sign.keystore")
             storePassword = "369852"
             keyAlias = "lob"
@@ -74,6 +74,7 @@ android {
         all {
             // Keep IPackageInstallObserver and IPackageDeleteObserver
             minifyEnabled false
+            def signingConfig = signingConfigs.get("sign")
             shrinkResources false
         }
     }
