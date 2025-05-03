@@ -27,7 +27,7 @@ jobs:
     - name: Cache Gradle
       uses: burrunan/gradle-cache-action@v2
     - name: Build Release APK
-      run: ./gradlew assembleRelease
+      run: ./gradlew :app:assembleRelease
     - name: Nightly build
       uses: softprops/action-gh-release@v1
       with:
