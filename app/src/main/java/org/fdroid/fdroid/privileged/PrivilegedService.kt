@@ -40,7 +40,14 @@ import rikka.shizuku.Shizuku
 import rikka.shizuku.ShizukuBinderWrapper
 import java.io.IOException
 import java.lang.reflect.Field
-
+import android.content.IIntentReceiver
+import android.content.IIntentSender
+import android.content.IntentSender
+import android.content.pm.PackageInstaller.Session
+import android.os.Bundle
+import android.os.IInterface
+import java.util.concurrent.LinkedBlockingQueue
+import java.util.concurrent.TimeUnit
 
 const val NOTIFICATION_CHANNEL = "org.fdroid.fdroid.privileged.main"
 
@@ -148,13 +155,8 @@ class PrivilegedService : Service() {
         lateinit var session: PackageInstaller.Session
         try {
             val sessionId = packageInstaller.createSession(params)
-            val iSession = IPackageInstallerSession.Stub.asInterface(
-                ShizukuBinderWrapper(
-                    iPackageInstaller.openSession(sessionId).asBinder()
-                )
-            )
-            session = ShizukuPackageInstallerUtils.createSession(iSession)
-
+            session = packageInstaller.openSession(sessionId)
+            setSessionIBinder(session)
             val buffer = ByteArray(65536)
 
             val input = contentResolver.openInputStream(packageURI)
@@ -170,15 +172,13 @@ class PrivilegedService : Service() {
                 IoUtils.closeQuietly(out)
             }
 
-            // Create a PendingIntent and use it to generate the IntentSender
-            val broadcastIntent = Intent(BROADCAST_ACTION_INSTALL)
-            val pendingIntent = PendingIntent.getBroadcast(
-                this@PrivilegedService,
-                sessionId,
-                broadcastIntent,
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-            )
-            session.commit(pendingIntent.intentSender)
+            val receiver = LocalIntentReceiver()
+            Thread {
+                session.commit(receiver.getIntentSender())
+                val intent = receiver.getResult()
+                intent.action = BROADCAST_ACTION_INSTALL
+                context.sendBroadcast(intent)
+            }.start()
 
         } catch (e: IOException) {
             Log.d(TAG, "Failure", e)
@@ -189,7 +189,32 @@ class PrivilegedService : Service() {
 
         mCallback = callback
     }
-
+    private  fun setSessionIBinder(session: Session) {
+        val field = getFiled(session::class.java, "mSession", IPackageInstallerSession::class.java)
+            ?: return
+        val iBinder = (field.get(session) as IInterface).asBinder()
+        field.set(
+            session, IPackageInstallerSession.Stub.asInterface(ShizukuBinderWrapper(
+                iBinder
+            ))
+        )
+    }
+ 
+    private fun getFiled(any: Class<*>, name: String, clazz: Class<*>): Field? {
+        val reflect = ReflectRepoImpl()
+        var field = reflect.getDeclaredField(any, name)
+        field?.isAccessible = true
+        if (field?.type != clazz) {
+            val fields = reflect.getDeclaredFields(any)
+            for (item in fields) {
+                if (item.type != clazz) continue
+                field = item
+                break
+            }
+        }
+        field?.isAccessible = true
+        return field
+    }
     @SuppressLint("MissingPermission")
     private fun deletePackageImpl(packageName: String, callback: IPrivilegedCallback) {
         Log.d(TAG, "deletePackage()")
@@ -282,12 +307,12 @@ class PrivilegedService : Service() {
         val intentFilter = IntentFilter()
         intentFilter.addAction(BROADCAST_ACTION_INSTALL)
         registerReceiver(
-            mBroadcastReceiver, intentFilter, BROADCAST_SENDER_PERMISSION, null /*scheduler*/
+            mBroadcastReceiver, intentFilter
         )
         val intentFilter2 = IntentFilter()
         intentFilter2.addAction(BROADCAST_ACTION_UNINSTALL)
         registerReceiver(
-            mBroadcastReceiver, intentFilter2, BROADCAST_SENDER_PERMISSION, null /*scheduler*/
+            mBroadcastReceiver, intentFilter2
         )
     }
 
@@ -296,6 +321,48 @@ class PrivilegedService : Service() {
         unregisterReceiver(mBroadcastReceiver)
     }
 
+    class LocalIntentReceiver {
+        private val reflect = ReflectRepoImpl()
+ 
+        private val queue = LinkedBlockingQueue<Intent>(1)
+ 
+        private val localSender = object : IIntentSender.Stub() {
+            // this api only work for upper Android O (8.0)
+            // see this url:
+            // Android N (7.1): http://aospxref.com/android-7.1.2_r39/xref/frameworks/base/core/java/android/content/IIntentSender.aidl
+            // Android O (8.0): http://aospxref.com/android-8.0.0_r36/xref/frameworks/base/core/java/android/content/IIntentSender.aidl
+            override fun send(
+                code: Int,
+                intent: Intent,
+                resolvedType: String?,
+                whitelistToken: IBinder?,
+                finishedReceiver: IIntentReceiver?,
+                requiredPermission: String?,
+                options: Bundle?
+            ) {
+                queue.offer(intent, 5, TimeUnit.SECONDS)
+            }
+ 
+        }
+ 
+        fun getIntentSender(): IntentSender {
+            return reflect.getDeclaredConstructor(
+                IntentSender::class.java, IIntentSender::class.java
+            )!!.also {
+                it.isAccessible = true
+            }.newInstance(localSender) as IntentSender
+        }
+ 
+        fun getResult(): Intent {
+            return try {
+                val result = queue.take()
+                queue.remove(result)
+                result
+            } catch (e: InterruptedException) {
+                throw RuntimeException(e)
+            }
+        }
+    }
     companion object {
         const val TAG = "PrivilegedExtension"
         private const val BROADCAST_ACTION_INSTALL =

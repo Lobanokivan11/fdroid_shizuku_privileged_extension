@@ -25,7 +25,7 @@ gradle.allprojects {
 
 dependencies {
     implementation "androidx.core:core-ktx:1.9.0"
-
+    compileOnly project(":hidden-api")
     def shizuku_version = '12.1.0'
     implementation "dev.rikka.shizuku:api:$shizuku_version"
     implementation "dev.rikka.shizuku:provider:$shizuku_version"
