@@ -175,7 +175,6 @@ class PrivilegedService : Service() {
 
             val receiver = LocalIntentReceiver()
             Thread {
-                session.commit(receiver.getIntentSender())
                 val intent = receiver.getResult()
                 intent.action = BROADCAST_ACTION_INSTALL
                 context.sendBroadcast(intent)
@@ -186,6 +185,7 @@ class PrivilegedService : Service() {
                     broadcastIntent,
                     PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
                     )
+                session.commit(pendingIntent.intentSender)
             }.start()
         } catch (e: IOException) {
             Log.d(TAG, "Failure", e)
