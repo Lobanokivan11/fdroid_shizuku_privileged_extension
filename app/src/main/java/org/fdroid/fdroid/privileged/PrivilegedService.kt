@@ -171,7 +171,14 @@ class PrivilegedService : Service() {
                 IoUtils.closeQuietly(input)
                 IoUtils.closeQuietly(out)
             }
-
+            val broadcastIntent = Intent(BROADCAST_ACTION_INSTALL)
+            val pendingIntent = PendingIntent.getBroadcast(
+                context,
+                0,
+                broadcastIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            session.commit(pendingIntent.intentSender)
             val receiver = LocalIntentReceiver()
             Thread {
                 session.commit(receiver.getIntentSender())
