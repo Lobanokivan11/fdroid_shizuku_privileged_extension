@@ -172,21 +172,22 @@ class PrivilegedService : Service() {
                 IoUtils.closeQuietly(input)
                 IoUtils.closeQuietly(out)
             }
+            val intent = Intent(BROADCAST_ACTION_INSTALL)
+            val pendingIntent = PendingIntent.getBroadcast(
+                this,
+                sessionId,
+                intent,
+                PendingIntent.FLAG_UPDATE_CURRENT
+            )
 
-            val receiver = LocalIntentReceiver()
-            Thread {
-                val broadcastIntent = Intent(BROADCAST_ACTION_INSTALL)
-                val pendingIntent = PendingIntent.getBroadcast(
-                    this@PrivilegedService,
-                    sessionId,
-                    broadcastIntent,
-                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-                    )
-                session.commit(receiver.getIntentSender())
-                val intent = receiver.getResult()
-                intent.action = BROADCAST_ACTION_INSTALL
-                context.sendBroadcast(intent)
-            }.start()
+            session.commit(pendingIntent.intentSender)
+//            val receiver = LocalIntentReceiver()
+//            Thread {
+//                session.commit(receiver.getIntentSender())
+//                val intent = receiver.getResult()
+//                intent.action = BROADCAST_ACTION_INSTALL
+//                context.sendBroadcast(intent)
+//            }.start()
         } catch (e: IOException) {
             Log.d(TAG, "Failure", e)
             Toast.makeText(this@PrivilegedService, e.localizedMessage, Toast.LENGTH_LONG).show()
